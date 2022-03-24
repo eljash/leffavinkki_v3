@@ -4,8 +4,6 @@ const app = express();
 const hostname = 'localhost';
 const port = 4000;
 
-const connection = require('./mysql')
-
 //Käyttäjätietoihin suunnatut reitit
 const users = require('./routes/userRoutes')
 

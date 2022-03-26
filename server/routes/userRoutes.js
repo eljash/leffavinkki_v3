@@ -19,7 +19,45 @@ router.get('/profile',(req,res) => {
 })
 
 /*
-        Polku rekisteröitymiseen.
+        KIRJAUTUMINEN
+        Kutsun rungon täytyy sisältää JSON-objekti avaimilla:
+                -email
+                -password
+
+        Onnistunut kirjautuminen palauttaa JSON objektin, jossa on avain accessToken,
+        joka sisältää käyttöoikeustunnuksen
+ */
+
+router.post('/login', (req,res) => {
+    const jsonObject = req.body
+
+    if(jsonObject.hasOwnProperty('email') && jsonObject.hasOwnProperty('password')){
+        const email = jsonObject.email;
+        const password = jsonObject.password;
+        (async () => {
+            const sql = "SELECT userId FROM user WHERE email = ? AND password = SHA1(?)"
+            const rows = await query(sql, [email, password])
+            if(rows.length > 0){
+                const userId = rows[0].userId
+                const token = jwt.sign({user_email: email, user_id:userId}, tSecret, { expiresIn: '2d'})
+                res.status(200).json({
+                    accessToken: token
+                }).send();
+                return
+            }
+
+            res.status(400).send('Sähköposti tai salasana väärin')
+
+        })()
+    } else {
+        res.status(400).send('Puutteelliset tiedot kirjautumista varten')
+    }
+
+
+})
+
+/*
+        REKISTERÖITYMINEN.
         Kutsun rungon täytyy sisältää JSON-objekti avaimilla:
                 -email
                 -password
@@ -28,12 +66,6 @@ router.get('/profile',(req,res) => {
                 -firstname
                 -lastname
  */
-
-router.post('/login', (req,res) => {
-    console.log(tSecret)
-
-})
-
 router.post('/register', (req,res) => {
     const jsonObject = req.body
     const required = ["email","password","username"]

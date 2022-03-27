@@ -24,11 +24,59 @@ router.get('/profile',(req,res) => {
 
 /*
         PROFIILIN PÄIVITTÄMINEN
-        Pyynnön headersien täytyy sisältää header 'access-token', joka sisältää käyttäjän voimassa olevan käyttöoikeustunnuksen
+            Pyynnön headersien täytyy sisältää header 'access-token', joka sisältää käyttäjän voimassa olevan käyttöoikeustunnuksen
+
+            Pyynnön runko (body) täytyy sisältää JSON objekti vähintään yhdellä näistä avaimista:
+                description
+                firstname
+                lastname
  */
 router.post('/update-profile', jwtAuth.authenticateToken, (req,res) => {
-    res.status(200).send()
 
+    //Middlewaresta authenticateToken saadaan req.user_email ja req.user_id <-- kirjautuneen käyttäjän sposti ja id
+
+    try {
+        const jsonObject = req.body
+
+        //Pyynnön tulee sisältää väh. yksi avaimista
+        if(jsonObject.hasOwnProperty('description') || jsonObject.hasOwnProperty('firstname') || jsonObject.hasOwnProperty('lastname')){
+            (async () => {
+                try{
+                    let sql = "SELECT * FROM userprofile WHERE userId = ?"
+                    const rows = await query(sql, [req.user_id])
+                    if(rows.length > 0){
+                        let description = rows[0].description
+                        let firstname = rows[0].firstname
+                        let lastname = rows[0].lastname
+                        if(jsonObject.hasOwnProperty('description'))
+                            description = jsonObject.description
+                        if(jsonObject.hasOwnProperty('firstname'))
+                            firstname = jsonObject.firstname
+                        if(jsonObject.hasOwnProperty('lastname'))
+                            lastname = jsonObject.lastname
+                        sql = "UPDATE userprofile SET description = ?, firstname = ?, lastname = ? "+
+                            "WHERE userId = ?"
+                        console.log(description + "." + firstname + "." + lastname + "." + req.user_id)
+                        await query(sql, [description, firstname, lastname, req.user_id])
+                        res.status(200).send("Profiilin päivitys onnistui")
+                        return
+                    }
+                    res.status(400).send('Käyttäjällesi ei löytynyt profiilia. Ota yhteys LeffaVinkin asiakaspalveluun.')
+                    return
+                } catch (e) {
+                    res.status(500).send('Jokin meni vikaan.')
+                    return
+                }
+
+            })()
+
+        } else {
+            res.status(500).send('Profiilin päivittäminen epäonnistui.')
+            return
+        }
+    } catch (e) {
+        res.status(500).send('Jokin meni vikaan.')
+    }
 })
 
 /*
@@ -41,32 +89,34 @@ router.post('/update-profile', jwtAuth.authenticateToken, (req,res) => {
         joka sisältää käyttöoikeustunnuksen
  */
 router.post('/login', (req,res) => {
-    const jsonObject = req.body
+    try {
+        const jsonObject = req.body
 
-    if(jsonObject.hasOwnProperty('email') && jsonObject.hasOwnProperty('password')){
-        const email = jsonObject.email;
-        const password = jsonObject.password;
-        (async () => {
-            const sql = "SELECT userId FROM user WHERE email = ? AND password = SHA1(?)"
-            const rows = await query(sql, [email, password])
-            if(rows.length > 0){
-                const userId = rows[0].userId
-                //const token = jwt.sign({user_email: email, user_id:userId}, tSecret, { expiresIn: '2d'})
-                const token = jwtAuth.generateAccessToken(email, userId)
-                res.status(200).json({
-                    accessToken: token
-                }).send();
-                return
-            }
+        if(jsonObject.hasOwnProperty('email') && jsonObject.hasOwnProperty('password')){
+            const email = jsonObject.email;
+            const password = jsonObject.password;
+            (async () => {
+                const sql = "SELECT userId FROM user WHERE email = ? AND password = SHA1(?)"
+                const rows = await query(sql, [email, password])
+                if(rows.length > 0){
+                    const userId = rows[0].userId
+                    //const token = jwt.sign({user_email: email, user_id:userId}, tSecret, { expiresIn: '2d'})
+                    const token = jwtAuth.generateAccessToken(email, userId)
+                    res.status(200).json({
+                        accessToken: token
+                    }).send();
+                    return
+                }
 
-            res.status(400).send('Sähköposti tai salasana väärin')
+                res.status(400).send('Sähköposti tai salasana väärin')
 
-        })()
-    } else {
-        res.status(400).send('Puutteelliset tiedot kirjautumista varten')
+            })()
+        } else {
+            res.status(400).send('Puutteelliset tiedot kirjautumista varten')
+        }
+    } catch (e) {
+
     }
-
-
 })
 
 /*
@@ -80,66 +130,65 @@ router.post('/login', (req,res) => {
                 -lastname
  */
 router.post('/register', (req,res) => {
-    const jsonObject = req.body
-    const required = ["email","password","username"]
+    try{
+        const jsonObject = req.body
+        const required = ["email","password","username"]
 
-    let requiredCount = 0
+        let requiredCount = 0
 
-    //Katsotaan, että kutsun rungosta löytyy kaikki tarvittavat avaimet
-    required.forEach(f => {
-        if(jsonObject.hasOwnProperty(f))
-            requiredCount++
-    })
+        //Katsotaan, että kutsun rungosta löytyy kaikki tarvittavat avaimet
+        required.forEach(f => {
+            if(jsonObject.hasOwnProperty(f))
+                requiredCount++
+        })
 
-    if(requiredCount == required.length){
-        const email = jsonObject.email
-        const password = jsonObject.password
-        const username = jsonObject.username
-        //Katsotaan onko nimi/sposti käytössä
-        let sql = 'SELECT * FROM user WHERE username = ? OR email = ?';
+        if(requiredCount == required.length){
+            const email = jsonObject.email
+            const password = jsonObject.password
+            const username = jsonObject.username
+            //Katsotaan onko nimi/sposti käytössä
+            let sql = 'SELECT * FROM user WHERE username = ? OR email = ?';
 
-        (async () => {
-            try {
-                let rows = await query(sql, [username, email])
-                if(rows.length > 0){
-                    //Käyttäjä on jo olemassa
-                    res.status(400).send();
-                    return
+            (async () => {
+                try {
+                    let rows = await query(sql, [username, email])
+                    if(rows.length > 0){
+                        //Käyttäjä on jo olemassa
+                        res.status(400).send("Käyttäjänimi tai sähköposti on jo käytössä");
+                        return
+                    }
+
+                    sql = "INSERT INTO user (email, password, username) "
+                        + "VALUES (?, SHA1(?), ?)"
+                    rows = await query(sql, [email, password, username])
+
+                    const createdUserId = rows.insertId;
+
+                    let firstname = null
+                    let lastname = null
+
+                    if(jsonObject.hasOwnProperty('firstname'))
+                        firstname = jsonObject.firstname
+                    if(jsonObject.hasOwnProperty('lastname'))
+                        lastname = jsonObject.lastname
+
+                    sql = "INSERT INTO userprofile (userId, firstname, lastname) "
+                        + "VALUES(?,?,?)"
+                    await query(sql, [createdUserId, firstname, lastname])
+                    res.status(200).send("Rekisteröityminen onnistui");
+
+                } catch (err){
+                    console.log(err)
+                    res.status(400).send("Jokin meni vikaan rekisteröinnissä.");
                 }
 
-                sql = "INSERT INTO user (email, password, username) "
-                        + "VALUES (?, SHA1(?), ?)"
-                rows = await query(sql, [email, password, username])
+            })()
 
-                const createdUserId = rows.insertId;
+        } else {
+            res.status(400).send("Jokin meni vikaan rekisteröinnissä.");
+        }
+    } catch (e) {
 
-                let firstname = null
-                let lastname = null
-
-                if(jsonObject.hasOwnProperty('firstname'))
-                    firstname = jsonObject.firstname
-                if(jsonObject.hasOwnProperty('lastname'))
-                    lastname = jsonObject.lastname
-
-                sql = "INSERT INTO userprofile (userId, firstname, lastname) "
-                        + "VALUES(?,?,?)"
-                await query(sql, [createdUserId, firstname, lastname])
-                res.status(200).send();
-
-            } catch (err){
-                console.log(err)
-                res.status(400).send();
-            }
-
-        })()
-
-        //SQL kutsu uuden käyttäjän tekemiseen. Jos ei onnistu niin palauta virhe
-
-        //Luonnin yhteydessä luo tietokannan palauttama rivistö. Jos vapaaehtoisia kenttiä lähetetty
-        //lähetä arvot käyttäjän profiilitauluun
-
-    } else {
-        res.status(400).send();
     }
 })
 

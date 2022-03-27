@@ -7,6 +7,10 @@ const util = require('util')
 const dotenv = require('dotenv')
 const query = util.promisify(connection.query).bind(connection)
 
+const jwtAuth = require('../jsonwebtoken')
+
+
+
 router.use(bodyParser.urlencoded({extended: false}))
 router.use(bodyParser.json('application/json'))
 
@@ -19,6 +23,15 @@ router.get('/profile',(req,res) => {
 })
 
 /*
+        PROFIILIN PÄIVITTÄMINEN
+        Pyynnön headersien täytyy sisältää header 'access-token', joka sisältää käyttäjän voimassa olevan käyttöoikeustunnuksen
+ */
+router.post('/update-profile', jwtAuth.authenticateToken, (req,res) => {
+    res.status(200).send()
+
+})
+
+/*
         KIRJAUTUMINEN
         Kutsun rungon täytyy sisältää JSON-objekti avaimilla:
                 -email
@@ -27,7 +40,6 @@ router.get('/profile',(req,res) => {
         Onnistunut kirjautuminen palauttaa JSON objektin, jossa on avain accessToken,
         joka sisältää käyttöoikeustunnuksen
  */
-
 router.post('/login', (req,res) => {
     const jsonObject = req.body
 
@@ -39,7 +51,8 @@ router.post('/login', (req,res) => {
             const rows = await query(sql, [email, password])
             if(rows.length > 0){
                 const userId = rows[0].userId
-                const token = jwt.sign({user_email: email, user_id:userId}, tSecret, { expiresIn: '2d'})
+                //const token = jwt.sign({user_email: email, user_id:userId}, tSecret, { expiresIn: '2d'})
+                const token = jwtAuth.generateAccessToken(email, userId)
                 res.status(200).json({
                     accessToken: token
                 }).send();

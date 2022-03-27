@@ -23,6 +23,47 @@ router.get('/profile',(req,res) => {
 })
 
 /*
+        KÄYTTÄJÄN PROFIILIN KOMMENTOINTI
+            Pyynnön headerin täytyy sisältää header access-token <-- kuka kirjoittaa kommentin ja onko valtuudet
+
+            Pyynnön täytyy sisältää rungossa (body) JSON objekti, jossa ainakin avaimet:
+                userId <-- kenen profiiliin kirjoitetaan
+                content <-- kommentin sisältö
+              Vapaaehtoinen avain
+                parentId <-- liittyykö kommenti jo aikasempaan kommenttiin
+ */
+router.post('/comment-profile', jwtAuth.authenticateToken, (req,res) => {
+    try {
+        const jsonObject = req.body
+        //Jos jokin pakollinen avain puuttuu, lopetataan läpikäynti
+        if(!jsonObject.hasOwnProperty('userId') || !jsonObject.hasOwnProperty('content')){
+            res.status(400).send('Pyyntö kommentin jättämiseen ei sisällä kaikkia tarvittavia tietoja.')
+            return
+        }
+        ( async() => {
+            const writerId = req.user_id
+            const recieverId = jsonObject.userId
+            const content = jsonObject.content
+
+            //Kommentoidaanko aikaisempaa kommenttia
+            if(jsonObject.hasOwnProperty('parentId')){
+                const sql = "INSERT INTO commentprofile (parentId, content, userId, commenterId) VALUES(?,?,?,?)"
+                await query(sql, [jsonObject.parentId, content, recieverId, writerId])
+                res.status(200).send('Kommentti lisätty.')
+                return
+            }
+            const sql = "INSERT INTO commentprofile (content, userId, commenterId) VALUES(?,?,?)"
+            await query(sql, [content, recieverId, writerId])
+            res.status(200).send('Kommentti lisätty.')
+            return
+        })()
+    } catch (e) {
+        res.status(500).send("Jokin meni vikaan.")
+        return
+    }
+})
+
+/*
         PROFIILIN PÄIVITTÄMINEN
             Pyynnön headersien täytyy sisältää header 'access-token', joka sisältää käyttäjän voimassa olevan käyttöoikeustunnuksen
 

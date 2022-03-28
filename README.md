@@ -7,9 +7,9 @@ Kouluprojektin innoittama, mutta täysin pohjalta uusiksi rakennettu.
 Tarvitset .env tiedoston, joka ei löydy git hakemistosta (kysy)
 
 
-##RestAPI
+## RestAPI
 
-###/users
+### /users
 
 - /register POST
     - body (JSON)

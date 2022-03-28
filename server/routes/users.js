@@ -23,9 +23,66 @@ router.get('/profile',(req,res) => {
 /*
         PROFIILIN ARVOSTELU
             Pyynnön täytyy sisältää header access-token
- */
-router.post('rate-profile', jwtAuth.authenticateToken, (req,res) => {
 
+            Rungon (body) täytyy sisältää avaimet:
+                -profileId
+                -review (Numeraalinen)
+
+            Kaikki negatiiviset arvot muunnetaan -1, positiiviset 1 ja 0 = 0 eli neutraali arvostelu.
+ */
+router.post('/rate-profile', jwtAuth.authenticateToken, (req,res) => {
+    try {
+        const jsonObjet = req.body
+        if(!jsonObjet.hasOwnProperty('profileId') || !jsonObjet.hasOwnProperty('review')){
+            res.status(400).send('Pyynnöstä puuttuu avaimia.')
+            return
+        }
+        if(isNaN(jsonObjet.profileId) || isNaN(jsonObjet.review)){
+            res.status(400).send('Numeraalisten arvojen sijaan muita muuttuja arvoja.')
+            return
+        }
+        if(jsonObjet.profileId == req.user_id){
+            res.status(400).send('Käyttäjä ei voi arvioida omaa profiiliaan.')
+            return
+        }
+        (async () => {
+            try{
+
+                const reviewer = req.user_id
+                const profile = jsonObjet.profileId
+                let review
+
+                if(jsonObjet.review > 0)
+                    review = 1
+                else if(jsonObjet.review < 0)
+                    review = -1
+                else
+                    review = 0
+
+                let sql = "SELECT * FROM ratingprofile WHERE userId = ? AND raterId = ?"
+
+                const rows = await query(sql, [profile,reviewer])
+                if(rows.length > 0){
+                    sql = "UPDATE ratingprofile SET rating = ? WHERE userId = ? AND raterId = ?"
+                    await query(sql, [review, profile, reviewer])
+                    res.status(200).send('Profiili arvostelu onnistui.')
+                    return
+                } else {
+                    sql = "INSERT INTO ratingprofile (rating, userId, raterId) VALUES (?,?,?)"
+                    await query(sql, [review, profile, reviewer])
+                    res.status(200).send('Profiili arvostelu onnistui.')
+                    return
+                }
+
+            } catch (e) {
+                res.status(400).send('Jokin meni vikaan arvostelun tekemisessä.')
+                return
+            }
+        })()
+    } catch (e) {
+        res.status(500).send('Jokin meni vikaan.')
+        return
+    }
 })
 
 /*
@@ -41,15 +98,24 @@ router.delete('/remove-comment', jwtAuth.authenticateToken, (req,res)=>{
             res.status(400).send('Kommentin poisto pyynnöstä puuttuu kommentin id.')
             return
         }
+        if(isNaN(jsonObject.commentId)){
+            res.status(400).send('Kommentin id ei ole annettu numeraalina.')
+            return
+        }
         (async () => {
-            const sql = "DELETE FROM commentprofile WHERE commentId = ? AND (commenterId = ? OR userId = ?)"
-            const rows = await query(sql, [jsonObject.commentId, req.user_id, req.user_id])
-            if(rows.affectedRows > 0) {
-                res.status(200).send('Kommentti poistettu.')
+            try {
+                const sql = "DELETE FROM commentprofile WHERE commentId = ? AND (commenterId = ? OR userId = ?)"
+                const rows = await query(sql, [jsonObject.commentId, req.user_id, req.user_id])
+                if(rows.affectedRows > 0) {
+                    res.status(200).send('Kommentti poistettu.')
+                    return
+                }
+                res.status(400).send('Kommenttia ei löytynyt tai sen poistamiseen ei ole oikeuksia.')
+                return
+            } catch (e) {
+                res.status(400).send('Jokin meni vikaan kommenttia poistaessa.')
                 return
             }
-            res.status(400).send('Kommenttia ei löytynyt tai sen poistamiseen ei ole oikeuksia.')
-            return
         })()
     } catch (e) {
         res.status(500).send('Jokin meni vikaan.')
@@ -74,22 +140,31 @@ router.post('/comment-profile', jwtAuth.authenticateToken, (req,res) => {
             res.status(400).send('Pyyntö kommentin jättämiseen ei sisällä kaikkia tarvittavia tietoja.')
             return
         }
+        if(isNaN(jsonObject.userId)){
+            res.status(400).send('Kommentoitavan profiilin id ei ole annettu numeraalina.')
+            return
+        }
         ( async() => {
-            const writerId = req.user_id
-            const recieverId = jsonObject.userId
-            const content = jsonObject.content
+            try {
+                const writerId = req.user_id
+                const recieverId = jsonObject.userId
+                const content = jsonObject.content
 
-            //Kommentoidaanko aikaisempaa kommenttia
-            if(jsonObject.hasOwnProperty('parentId')){
-                const sql = "INSERT INTO commentprofile (parentId, content, userId, commenterId) VALUES(?,?,?,?)"
-                await query(sql, [jsonObject.parentId, content, recieverId, writerId])
+                //Kommentoidaanko aikaisempaa kommenttia
+                if(jsonObject.hasOwnProperty('parentId')){
+                    const sql = "INSERT INTO commentprofile (parentId, content, userId, commenterId) VALUES(?,?,?,?)"
+                    await query(sql, [jsonObject.parentId, content, recieverId, writerId])
+                    res.status(200).send('Kommentti lisätty.')
+                    return
+                }
+                const sql = "INSERT INTO commentprofile (content, userId, commenterId) VALUES(?,?,?)"
+                await query(sql, [content, recieverId, writerId])
                 res.status(200).send('Kommentti lisätty.')
                 return
+            } catch (e) {
+                res.status(400).send('Kommentin jättäminen ei onnistunut. Joko käyttäjää ei löytynyt tai muu virhe.')
+                return
             }
-            const sql = "INSERT INTO commentprofile (content, userId, commenterId) VALUES(?,?,?)"
-            await query(sql, [content, recieverId, writerId])
-            res.status(200).send('Kommentti lisätty.')
-            return
         })()
     } catch (e) {
         res.status(500).send("Jokin meni vikaan.")
@@ -170,20 +245,24 @@ router.get('/login', (req,res) => {
             const email = jsonObject.email;
             const password = jsonObject.password;
             (async () => {
-                const sql = "SELECT userId FROM user WHERE email = ? AND password = SHA1(?)"
-                const rows = await query(sql, [email, password])
-                if(rows.length > 0){
-                    const userId = rows[0].userId
-                    //const token = jwt.sign({user_email: email, user_id:userId}, tSecret, { expiresIn: '2d'})
-                    const token = jwtAuth.generateAccessToken(email, userId)
-                    res.status(200).json({
-                        'access-token': token
-                    }).send();
+                try {
+                    const sql = "SELECT userId FROM user WHERE email = ? AND password = SHA1(?)"
+                    const rows = await query(sql, [email, password])
+                    if(rows.length > 0){
+                        const userId = rows[0].userId
+                        //const token = jwt.sign({user_email: email, user_id:userId}, tSecret, { expiresIn: '2d'})
+                        const token = jwtAuth.generateAccessToken(email, userId)
+                        res.status(200).json({
+                            'access-token': token
+                        }).send();
+                        return
+                    }
+                    res.status(400).send('Sähköposti tai salasana väärin')
+                    return
+                } catch (e) {
+                    res.status(400).send('Virhe kirjautumisessa')
                     return
                 }
-
-                res.status(400).send('Sähköposti tai salasana väärin')
-
             })()
         } else {
             res.status(400).send('Puutteelliset tiedot kirjautumista varten')

@@ -67,7 +67,12 @@ Tarvitset .env tiedoston, joka ei löydy git hakemistosta (kysy)
           statuksen 200 ja tekstin onnistuneesta poistosta.
     
 - /rate-profile POST
+    - headers
+        - access-token <-- käyttöoikeustunnuksen
+        
     - body (JSON)
-      - a
+      - profileId <-- arvosteltavan profiilin id
+      - review <-- numeerinen arvo, muuntuu palvelimella muotoon '-1', '0' tai '1'
+      
     - Onnistunut profiilin arvostelu palauttaa HTTP
       statuksen 200 ja tekstin onnistuneesta arvostelun luomisesta.

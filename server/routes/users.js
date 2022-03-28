@@ -16,8 +16,46 @@ dotenv.config()
 
 const tSecret = process.env.TOKEN_SECRET
 
+/*
+        KÄYTTÄJÄN TIEDOT PROFIILIA VARTEN
+            -Rungon (body) täytyy sisältää avain id
+
+            -Kaikki userprofile taulusta
+            -Käyttäjänimi user taulusta
+ */
 router.get('/profile',(req,res) => {
-    res.send('profile')
+    (async () => {
+        try{
+            const jsonObject = req.body
+            if(!jsonObject.hasOwnProperty('id')){
+                res.status(400).send('Pyynnön bodysta puuttuu id-avain')
+                return
+            }
+
+            const idToSearch = jsonObject.id
+            let sql = "SELECT username FROM user WHERE userId = ?"
+            const rows = await query(sql,[idToSearch])
+            if(rows<1){
+                res.status(404).send('Käyttäjää ei löytynyt.')
+                return
+            }
+
+            sql = "SELECT * FROM userprofile WHERE userId = ?"
+            const rows2 = await query(sql,[idToSearch])
+            if(rows2<1){
+                res.status(404).send('Käyttäjää ei löytynyt.')
+                return
+            }
+
+            let responseJson = {...rows[0],...rows2[0]}
+            res.status(200).json(responseJson).send()
+            return
+        } catch (e) {
+            console.log(e)
+            res.status(500).send('Jotain meni vikaan.')
+            return
+        }
+    })()
 })
 
 /*

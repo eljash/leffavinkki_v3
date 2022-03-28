@@ -62,8 +62,8 @@ Tarvitset .env tiedoston, joka ei löydy git hakemistosta (kysy)
 
     - body (JSON)
         - commentId
-          
-      - Onnistunut kommentin poistaminen palauttaa HTTP
+        
+    - Onnistunut kommentin poistaminen palauttaa HTTP
           statuksen 200 ja tekstin onnistuneesta poistosta.
     
 - /rate-profile POST

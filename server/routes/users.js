@@ -9,8 +9,6 @@ const query = util.promisify(connection.query).bind(connection)
 
 const jwtAuth = require('../jsonwebtoken')
 
-
-
 router.use(bodyParser.urlencoded({extended: false}))
 router.use(bodyParser.json('application/json'))
 
@@ -20,6 +18,34 @@ const tSecret = process.env.TOKEN_SECRET
 
 router.get('/profile',(req,res) => {
     res.send('profile')
+})
+
+/*
+        KOMMENTIN POISTO
+            Pyynnön täytyy sisältää header access-token
+
+            Rungon (body) täytyy sisältää JSON objekti avaimella commentId
+ */
+router.delete('/remove-comment', jwtAuth.authenticateToken, (req,res)=>{
+    try {
+        const jsonObject = req.body
+        if(!jsonObject.hasOwnProperty('commentId')){
+            res.status(400).send('Kommentin poisto pyynnöstä puuttuu kommentin id.')
+            return
+        }
+        (async () => {
+            const sql = "DELETE FROM commentprofile WHERE commentId = ? AND (commenterId = ? OR userId = ?)"
+            const rows = await query(sql, [jsonObject.commentId, req.user_id, req.user_id])
+            if(rows.affectedRows > 0) {
+                res.status(200).send('Kommentti poistettu.')
+                return
+            }
+            res.status(400).send('Kommenttia ei löytynyt tai sen poistamiseen ei ole oikeuksia.')
+            return
+        })()
+    } catch (e) {
+        res.status(500).send('Jokin meni vikaan.')
+    }
 })
 
 /*
@@ -72,7 +98,7 @@ router.post('/comment-profile', jwtAuth.authenticateToken, (req,res) => {
                 firstname
                 lastname
  */
-router.post('/update-profile', jwtAuth.authenticateToken, (req,res) => {
+router.put('/update-profile', jwtAuth.authenticateToken, (req,res) => {
 
     //Middlewaresta authenticateToken saadaan req.user_email ja req.user_id <-- kirjautuneen käyttäjän sposti ja id
 
@@ -97,7 +123,6 @@ router.post('/update-profile', jwtAuth.authenticateToken, (req,res) => {
                             lastname = jsonObject.lastname
                         sql = "UPDATE userprofile SET description = ?, firstname = ?, lastname = ? "+
                             "WHERE userId = ?"
-                        console.log(description + "." + firstname + "." + lastname + "." + req.user_id)
                         await query(sql, [description, firstname, lastname, req.user_id])
                         res.status(200).send("Profiilin päivitys onnistui")
                         return
@@ -129,7 +154,7 @@ router.post('/update-profile', jwtAuth.authenticateToken, (req,res) => {
         Onnistunut kirjautuminen palauttaa JSON objektin, jossa on avain accessToken,
         joka sisältää käyttöoikeustunnuksen
  */
-router.post('/login', (req,res) => {
+router.get('/login', (req,res) => {
     try {
         const jsonObject = req.body
 

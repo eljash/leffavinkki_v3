@@ -5,9 +5,12 @@ const hostname = 'localhost';
 const port = 4000;
 
 //Käyttäjätietoihin suunnatut reitit
-const users = require('./routes/userRoutes')
+const users = require('./routes/users')
+//Elokuviin suunnatut reitit
+const movies = require('./routes/movies')
 
 app.use('/users',users)
+app.use('/movies',movies)
 
 app.get('/', (req,res)=>{
     res.send('LeffaVinkki palvelin');

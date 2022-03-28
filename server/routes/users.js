@@ -21,6 +21,67 @@ router.get('/profile',(req,res) => {
 })
 
 /*
+        KAIKKI KÄYTTÄJÄT TIETOKANNASTA
+ */
+router.get('',(req,res)=>{
+    (async () => {
+        try{
+            const sql = "SELECT * FROM userprofile"
+            const rows = await query(sql)
+            if(rows.length > 0){
+                res.status(200).json(rows).send()
+                return
+            }
+            res.status(500).send('Jokin meni vikaan.')
+            return
+        } catch (e) {
+            res.status(500).send('Jokin meni vikaan.')
+            return
+        }})()
+})
+
+/*
+        PROFIILIN HAKU NIMELLÄ
+            -Rungon (body) täytyy sisältää avain nameToSearch
+ */
+router.get('/search',(req,res) => {
+    const jsonObject = req.body;
+    if(!jsonObject.hasOwnProperty('nameToSearch')){
+        res.status(400).send('Hakun /body/ ei sisällä avainta "name".')
+        return
+    }
+    const name = '%'+jsonObject.nameToSearch+'%';
+    (async () => {
+        try{
+            let responseJson = {"profiles":[]}
+            let sql = "SELECT userId FROM user WHERE username LIKE ?"
+            let rows = await query(sql,[name])
+            if(rows.length > 0){
+                sql = "SELECT * FROM userprofile WHERE userId = ?"
+                for(let i = 0; i < rows.length; i++){
+                    const profile = await query(sql,[rows[i].userId])
+                    if(profile.length>0)
+                        responseJson.profiles.push(profile[0])
+                }
+            }
+            sql = "SELECT * FROM userprofile WHERE firstname LIKE ? OR lastname LIKE ?"
+            rows = await query(sql,[name, name])
+            if(rows.length > 0){
+                rows.forEach(row => {
+                    responseJson.profiles.push(row)
+                })
+            }
+            res.status(200).json(responseJson).send()
+            return
+        } catch (e) {
+            console.log(e)
+            res.status(500).send('Jokin meni vikaan.')
+            return
+        }
+    })()
+})
+
+/*
         PROFIILIN ARVOSTELU
             Pyynnön täytyy sisältää header access-token
 

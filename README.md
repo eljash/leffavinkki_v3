@@ -11,6 +11,9 @@ Tarvitset .env tiedoston, joka ei löydy git hakemistosta (kysy)
 
 ### /users
 
+- GET
+    - Palauttaa kaikki käyttäjäprofiilit
+
 - /register POST
     - body (JSON)
       - email

@@ -21,6 +21,14 @@ router.get('/profile',(req,res) => {
 })
 
 /*
+        PROFIILIN ARVOSTELU
+            Pyynnön täytyy sisältää header access-token
+ */
+router.post('rate-profile', jwtAuth.authenticateToken, (req,res) => {
+
+})
+
+/*
         KOMMENTIN POISTO
             Pyynnön täytyy sisältää header access-token
 
@@ -151,7 +159,7 @@ router.put('/update-profile', jwtAuth.authenticateToken, (req,res) => {
                 -email
                 -password
 
-        Onnistunut kirjautuminen palauttaa JSON objektin, jossa on avain accessToken,
+        Onnistunut kirjautuminen palauttaa JSON objektin, jossa on avain access-token,
         joka sisältää käyttöoikeustunnuksen
  */
 router.get('/login', (req,res) => {
@@ -169,7 +177,7 @@ router.get('/login', (req,res) => {
                     //const token = jwt.sign({user_email: email, user_id:userId}, tSecret, { expiresIn: '2d'})
                     const token = jwtAuth.generateAccessToken(email, userId)
                     res.status(200).json({
-                        accessToken: token
+                        'access-token': token
                     }).send();
                     return
                 }

@@ -6,6 +6,11 @@ Kouluprojektin innoittama, mutta täysin pohjalta uusiksi rakennettu.
 
 Tarvitset .env tiedoston, joka ei löydy git hakemistosta (kysy)
 
+## Onnistunut palvelin käynnistys
+
+Konsolissa näkyy kaksi riviä:
+- Palvelin pyörii osoitteessa: http://localhost:PORTIN_NUMERO
+- Tietokanta yhteys osoitteesta: TIETOKANNAN_OSOITE
 
 ## RestAPI
 
@@ -26,7 +31,7 @@ Tarvitset .env tiedoston, joka ei löydy git hakemistosta (kysy)
       statuksen 200 ja tekstin onnistuneesta käyttäjän luomisesta.
   
 - /login GET
-    - body (JSON)
+    - Header avaimet
       - email
       - password
         

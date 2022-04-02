@@ -1,8 +1,15 @@
 const express = require('express')
 const app = express();
+const cors = require('cors')
 
 const hostname = 'localhost';
 const port = 4000;
+
+//Suoritetaan alustukset
+const initializations = require('./initializations')
+initializations.initialize()
+
+app.use(cors())
 
 //Käyttäjätietoihin suunnatut reitit
 const users = require('./routes/users')

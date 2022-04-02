@@ -1,0 +1,32 @@
+Tähän hakemistoon (server) täytyy luoda tiedosto '.env'
+
+Tiedoston sisään täytyy kirjoittaa 7 muuttujaa, mallia (ainoastaan lainausmerkkien sisältä):
+
+""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+        MYSQL_HOST = 127.0.0.1
+        MYSQL_UN = root
+        MYSQL_PWRD = root
+        MYSQL_DB = leffavinkki
+        TOKEN_SECRET = luo_tähän_oma_jwt_token
+        OMDB_MOVIES_AS_JSON = http://www.omdbapi.com/?r=json&type=movie&
+        OMDB_KEY = &apikey=oma.avain
+
+""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+1. Jos mysql palvelin ei pyöri paikallisesti, vaihda 'MYSQL_HOST' muuttujaan osoite missä tietokantapalvelin pyörii
+
+2. Aseta 'MYSQL_UN' tietokannan käyttäjä, jolla on oikeus lisätä, hakea ja poistaa tietokannasta
+
+3. 'MYSQL_PWRD' arvoksi vaiheen kaksi käyttäjän salasana.
+
+4. Jos tietokanta on toisen niminen kuin esimerkissä, niin vaihda se (varmista, että tietokanta sisältää tarvittavat
+taulut oikein alustettuina).
+
+5. Luo tokensecret netistä löytyvillä ohjeilla ja korvaa 'luo_tähän....' omalla tokenilla
+
+6. Muuttuja 'OMDB_MOVIES_AS_JSON' pysyy samana
+
+7. Osoitteesta http://www.omdbapi.com/apikey.aspx hanki itsellesi oma rajapinnan avain, ilmainen vaihtoehto
+valitsemalla 'FREE!(1,000 daily limit)' vaihtoehto ja täyttämällä pyydetyt tiedot. Korvaa oma avain ainoastaan
+'oma.avain' tekstin päälle, eli arvon tulisi olla muotoa '&apikey=ffbb974f'

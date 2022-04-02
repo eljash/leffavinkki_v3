@@ -5,9 +5,33 @@ const jwt = require('jsonwebtoken')
 const bodyParser = require('body-parser')
 const util = require('util')
 const dotenv = require('dotenv')
+const multer = require('multer')
+const path = require('path')
 const query = util.promisify(connection.query).bind(connection)
 
 const jwtAuth = require('../jsonwebtoken')
+
+//Profiiliakuvia varten tarvittavat muuttujat
+const avatarStorage = multer.diskStorage({
+    destination: function (req, file, cb) {
+        const location = './uploads/' + req.username
+        cb(null, location)
+    },
+    filename: function (req, file, cb) {
+        cb(null, 'avatar.png')
+    }
+})
+const avatarUpload = multer({
+    storage: avatarStorage,
+    fileFilter: function (req, file, callback) {
+        const ext = file.originalname.slice(file.originalname.lastIndexOf("."))
+        console.log(ext)
+        if(ext !== ".png"){
+            return callback(new Error('Vain .png päätteiset tiedostot sallittuja.'))
+        }
+        callback(null, true)
+    }
+})
 
 router.use(bodyParser.urlencoded({extended: false}))
 router.use(bodyParser.json('application/json'))
@@ -18,7 +42,7 @@ const tSecret = process.env.TOKEN_SECRET
 
 /*
         KÄYTTÄJÄN TIEDOT PROFIILIA VARTEN
-            -Rungon (body) täytyy sisältää avain id
+            -Headerin täytyy sisältää avain id
 
             -Kaikki userprofile taulusta
             -Käyttäjänimi user taulusta
@@ -26,7 +50,8 @@ const tSecret = process.env.TOKEN_SECRET
 router.get('/profile',(req,res) => {
     (async () => {
         try{
-            const jsonObject = req.body
+            const jsonObject = req.headers
+            console.log(jsonObject)
             if(!jsonObject.hasOwnProperty('id')){
                 res.status(400).send('Pyynnön bodysta puuttuu id-avain')
                 return
@@ -121,7 +146,7 @@ router.get('/search',(req,res) => {
 
 /*
         PROFIILIN ARVOSTELU
-            Pyynnön täytyy sisältää header access-token
+            Pyynnön täytyy sisältää header accessToken
 
             Rungon (body) täytyy sisältää avaimet:
                 -profileId
@@ -186,7 +211,7 @@ router.post('/rate-profile', jwtAuth.authenticateToken, (req,res) => {
 
 /*
         KOMMENTIN POISTO
-            Pyynnön täytyy sisältää header access-token
+            Pyynnön täytyy sisältää header accessToken
 
             Rungon (body) täytyy sisältää JSON objekti avaimella commentId
  */
@@ -223,7 +248,7 @@ router.delete('/remove-comment', jwtAuth.authenticateToken, (req,res)=>{
 
 /*
         KÄYTTÄJÄN PROFIILIN KOMMENTOINTI
-            Pyynnön headerin täytyy sisältää header access-token <-- kuka kirjoittaa kommentin ja onko valtuudet
+            Pyynnön headerin täytyy sisältää header accessToken <-- kuka kirjoittaa kommentin ja onko valtuudet
 
             Pyynnön täytyy sisältää rungossa (body) JSON objekti, jossa ainakin avaimet:
                 userId <-- kenen profiiliin kirjoitetaan
@@ -273,7 +298,7 @@ router.post('/comment-profile', jwtAuth.authenticateToken, (req,res) => {
 
 /*
         PROFIILIN PÄIVITTÄMINEN
-            Pyynnön headersien täytyy sisältää header 'access-token', joka sisältää käyttäjän voimassa olevan käyttöoikeustunnuksen
+            Pyynnön headersien täytyy sisältää header 'accessToken', joka sisältää käyttäjän voimassa olevan käyttöoikeustunnuksen
 
             Pyynnön runko (body) täytyy sisältää JSON objekti vähintään yhdellä näistä avaimista:
                 description
@@ -328,31 +353,44 @@ router.put('/update-profile', jwtAuth.authenticateToken, (req,res) => {
 })
 
 /*
+        PROFIILIKUVAN LÄHETTÄMINEN
+ */
+router.post('/upload-avatar', jwtAuth.authenticateToken, avatarUpload.single('avatar'),(req,res) => {
+    res.status(200).send('ok')
+})
+
+/*
         KIRJAUTUMINEN
-        Kutsun rungon täytyy sisältää JSON-objekti avaimilla:
+        Headerin täytyy sisältää avaimet:
                 -email
                 -password
 
-        Onnistunut kirjautuminen palauttaa JSON objektin, jossa on avain access-token,
+        Onnistunut kirjautuminen palauttaa JSON objektin, jossa on avain accessToken,
         joka sisältää käyttöoikeustunnuksen
+
+        Palauttaa json:in sisällä:
+            accessToken
+            userId
  */
 router.get('/login', (req,res) => {
     try {
-        const jsonObject = req.body
+        const jsonObject = req.headers
 
         if(jsonObject.hasOwnProperty('email') && jsonObject.hasOwnProperty('password')){
             const email = jsonObject.email;
             const password = jsonObject.password;
             (async () => {
                 try {
-                    const sql = "SELECT userId FROM user WHERE email = ? AND password = SHA1(?)"
+                    const sql = "SELECT userId, username FROM user WHERE email = ? AND password = SHA1(?)"
                     const rows = await query(sql, [email, password])
                     if(rows.length > 0){
                         const userId = rows[0].userId
+                        const username = rows[0].username
                         //const token = jwt.sign({user_email: email, user_id:userId}, tSecret, { expiresIn: '2d'})
-                        const token = jwtAuth.generateAccessToken(email, userId)
+                        const token = jwtAuth.generateAccessToken(email, username,userId)
                         res.status(200).json({
-                            'access-token': token
+                            'userId' : userId,
+                            'accessToken': token
                         }).send();
                         return
                     }
@@ -365,9 +403,11 @@ router.get('/login', (req,res) => {
             })()
         } else {
             res.status(400).send('Puutteelliset tiedot kirjautumista varten')
+            return
         }
     } catch (e) {
-
+        res.status(500).send('Jotain meni vikaan.')
+        return
     }
 })
 

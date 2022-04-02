@@ -9,10 +9,10 @@ const tSecret = process.env.TOKEN_SECRET
 /*
         Funktio käyttöoikeustunnuksen luomiseen
  */
-function generateAccessToken(email, id){
+function generateAccessToken(email, username, id){
     //Tehdään logi kirjautumisesta
     logs.login(id)
-    return jwt.sign({user_email: email, user_id:id}, tSecret, {expiresIn: '2d'})
+    return jwt.sign({user_email: email, username: username, user_id:id}, tSecret, {expiresIn: '2d'})
 }
 
 /*
@@ -20,11 +20,12 @@ function generateAccessToken(email, id){
  */
 function authenticateToken(req, res, next){
     try{
-        const tokenToVerify = req.headers['access-token']
+        const tokenToVerify = req.headers['accessToken']
         try{
             jwt.verify(tokenToVerify, tSecret, function(err,decoded) {
                 //Lisätään käyttöoikeustunnuksesta käyttäjän sposti ja id pyyntöön
                 req.user_email = decoded.user_email
+                req.username = decoded.username
                 req.user_id = decoded.user_id
             })
         } catch (e) {
